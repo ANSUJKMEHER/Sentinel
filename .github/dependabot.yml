@@ -1,0 +1,19 @@
+# Sentinel's own supply-chain posture (R7): keep this repo's deps and Actions
+# updated. NOTE: .github/dependabot.yml is a GitHub-mandated path; the rest of
+# the project stays a flat single folder.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - security
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies

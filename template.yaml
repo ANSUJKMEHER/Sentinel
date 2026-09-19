@@ -1,0 +1,597 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        # nodejs20.x deprecation: spec-mandated baseline (still deployable until 2027-02-01;
+        # creation stops 2027-02-01). Bump LambdaRuntime to nodejs22.x/24.x when ready.
+        - W1030
+Description: >
+  Sentinel — advisory-first, org-wide npm dependency security automation for GitHub.
+  One GitHub Security Advisory -> impact analysis across every org repo -> coordinated remediation PRs.
+  v1: npm + package.json. Lockfile/transitive analysis on the roadmap.
+  R1-R7: DLQs, alarms, X-Ray, severity gating, repo policy, PR grouping, digests, weekly report.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub organization (or user) whose repositories Sentinel monitors.
+    Default: demo-org
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+  LambdaRuntime:
+    Type: String
+    Default: nodejs20.x
+    AllowedValues: [nodejs20.x, nodejs22.x, nodejs24.x]
+    Description: >
+      Lambda runtime. nodejs20.x is the spec baseline (deprecated 2026-04-30,
+      creation disabled 2027-02-01) — bump to nodejs22.x/24.x later if desired.
+  BedrockEnabled:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable the optional Bedrock prose section in PR bodies (built last, ~30 min).
+  AutoRemediateSeverities:
+    Type: String
+    Default: "critical,high"
+    Description: >
+      Comma-separated severities that auto-remediate (open PRs). Advisories below
+      this list are recorded report-only. Empty string disables gating (remediate all).
+  NotifyWebhookUrl:
+    Type: String
+    Default: ""
+    Description: >
+      Optional Slack-compatible incoming webhook URL for per-advisory digests
+      (R6). May contain a secret — prefer referencing an SSM-resolved value at
+      deploy time (see README). Empty disables notifications.
+
+Globals:
+  Function:
+    Runtime: !Ref LambdaRuntime
+    Architectures: [arm64]
+    Timeout: 30
+    MemorySize: 256
+    Tracing: Active
+    Environment:
+      Variables:
+        GITHUB_ORG: !Ref GitHubOrg
+        SSM_PARAM_NAME: /sentinel/github-token
+        STAGE: !Ref Stage
+
+Resources:
+  # ---------------------------------------------------------------- DynamoDB
+  AdvisoriesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ghsa_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ghsa_id
+          KeyType: HASH
+
+  ReposTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: repo
+          AttributeType: S
+      KeySchema:
+        - AttributeName: repo
+          KeyType: HASH
+
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+
+  # ---------------------------------------------------------------- SQS (+DLQs)
+  AdvisoryQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 0
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt AdvisoryDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  PatchQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      ReceiveMessageWaitTimeSeconds: 0
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PatchDeadLetterQueue.Arn
+        maxReceiveCount: 3
+
+  AdvisoryDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+
+  PatchDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+
+  # ---------------------------------------------------------------- SSM
+  # NOTE: /sentinel/github-token is created as a SecureString by deploy.sh via
+  # `aws ssm put-parameter` (CloudFormation cannot create SecureString parameters
+  # — AWS::SSM::Parameter only supports String/StringList).
+
+  # ---------------------------------------------------------------- Log groups
+  # Explicit for the Patch function so MetricFilters (job outcomes) can attach.
+  PatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  # ---------------------------------------------------------------- Lambdas
+  AdvisorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [advisor.mjs]
+        Minify: false
+        Sourcemap: true
+    Properties:
+      CodeUri: .
+      Handler: advisor.handler
+      FunctionName: !Sub "sentinel-${Stage}-advisor"
+      Description: Detect new npm GHSA advisories -> DynamoDB + advisory-queue
+      Environment:
+        Variables:
+          ADVISORIES_TABLE: !Ref AdvisoriesTable
+          ADVISORY_QUEUE_URL: !Ref AdvisoryQueue
+          AUTO_REMEDIATE_SEVERITIES: !Ref AutoRemediateSeverities
+      Policies:
+        - AWSXrayWriteOnlyAccess
+        - Statement:
+            - Sid: SsmGetToken
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sentinel/github-token"
+            - Sid: PutAdvisory
+              Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt AdvisoriesTable.Arn
+            - Sid: SendAdvisoryMessage
+              Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt AdvisoryQueue.Arn
+      Events:
+        Poll:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Enabled: true
+
+  ImpactFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [impact.mjs]
+        Minify: false
+        Sourcemap: true
+    Properties:
+      CodeUri: .
+      Handler: impact.handler
+      FunctionName: !Sub "sentinel-${Stage}-impact"
+      Description: Decide which org repos are affected by one advisory
+      Environment:
+        Variables:
+          REPOS_TABLE: !Ref ReposTable
+          JOBS_TABLE: !Ref JobsTable
+          PATCH_QUEUE_URL: !Ref PatchQueue
+      Policies:
+        - AWSXrayWriteOnlyAccess
+        - Statement:
+            - Sid: SsmGetToken
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sentinel/github-token"
+            - Sid: UpsertRepos
+              Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt ReposTable.Arn
+            - Sid: PutJobs
+              Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt JobsTable.Arn
+            - Sid: SendPatchMessage
+              Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt PatchQueue.Arn
+      Events:
+        AdvisoryQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AdvisoryQueue.Arn
+            BatchSize: 1
+            MaximumBatchingWindowInSeconds: 0
+
+  PatchFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [patch.mjs]
+        Minify: false
+        Sourcemap: true
+    Properties:
+      CodeUri: .
+      Handler: patch.handler
+      FunctionName: !Sub "sentinel-${Stage}-patch"
+      Timeout: 60
+      LoggingConfig:
+        LogGroup: !Ref PatchLogGroup
+      Description: Open remediation PRs (branch + commit + PR via GitHub API)
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          ADVISORIES_TABLE: !Ref AdvisoriesTable
+          NOTIFY_WEBHOOK_URL: !Ref NotifyWebhookUrl
+          BEDROCK_ENABLED: !Ref BedrockEnabled
+          BEDROCK_MODEL_ID: amazon.nova-lite-v1:0
+      Policies:
+        - AWSXrayWriteOnlyAccess
+        - Statement:
+            - Sid: SsmGetToken
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sentinel/github-token"
+            - Sid: UpdateJobs
+              Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt JobsTable.Arn
+            - Sid: ScanJobsForDigest
+              Effect: Allow
+              Action: dynamodb:Scan
+              Resource: !GetAtt JobsTable.Arn
+            - Sid: MarkAdvisoryDigest
+              Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource: !GetAtt AdvisoriesTable.Arn
+            - Sid: BedrockInvoke
+              Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0"
+      Events:
+        PatchQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PatchQueue.Arn
+            BatchSize: 1
+            MaximumBatchingWindowInSeconds: 0
+
+  StateFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [state.mjs]
+        Minify: false
+        Sourcemap: true
+    Properties:
+      CodeUri: .
+      Handler: state.handler
+      FunctionName: !Sub "sentinel-${Stage}-state"
+      Timeout: 60
+      Description: Dashboard API — GET /state, GET /report, POST /advisories/simulate
+      Environment:
+        Variables:
+          ADVISORIES_TABLE: !Ref AdvisoriesTable
+          REPOS_TABLE: !Ref ReposTable
+          JOBS_TABLE: !Ref JobsTable
+          ADVISORY_QUEUE_URL: !Ref AdvisoryQueue
+          AUTO_REMEDIATE_SEVERITIES: !Ref AutoRemediateSeverities
+      Policies:
+        - AWSXrayWriteOnlyAccess
+        - Statement:
+            - Sid: SsmGetToken
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/sentinel/github-token"
+            - Sid: ScanTables
+              Effect: Allow
+              Action: dynamodb:Scan
+              Resource:
+                - !GetAtt AdvisoriesTable.Arn
+                - !GetAtt ReposTable.Arn
+                - !GetAtt JobsTable.Arn
+            - Sid: PutSimulatedAdvisory
+              Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt AdvisoriesTable.Arn
+            - Sid: SendSimulatedAdvisory
+              Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt AdvisoryQueue.Arn
+      Events:
+        GetState:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SentinelHttpApi
+            Method: GET
+            Path: /state
+        GetReport:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SentinelHttpApi
+            Method: GET
+            Path: /report
+        Simulate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SentinelHttpApi
+            Method: POST
+            Path: /advisories/simulate
+
+  # ---------------------------------------------------------------- API
+  SentinelHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Description: Sentinel dashboard API
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: [GET, POST, OPTIONS]
+        AllowHeaders: [content-type, authorization]
+        MaxAge: 300
+
+  # ---------------------------------------------------------------- Dashboard
+  DashboardBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "sentinel-dashboard-${AWS::AccountId}-${Stage}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  DashboardBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DashboardBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadDashboard
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${DashboardBucket.Arn}/*"
+
+  # ---------------------------------------------------------------- Log metric filters (R2)
+  # JSON logs: {"event":"job_failed", ...} / {"event":"pr_created", ...}
+  JobFailedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref PatchLogGroup
+      FilterPattern: '{ $.event = "job_failed" }'
+      MetricTransformations:
+        - MetricName: JobFailed
+          MetricNamespace: Sentinel
+          MetricValue: "1"
+
+  PrCreatedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref PatchLogGroup
+      FilterPattern: '{ $.event = "pr_created" }'
+      MetricTransformations:
+        - MetricName: PrCreated
+          MetricNamespace: Sentinel
+          MetricValue: "1"
+
+  # ---------------------------------------------------------------- Alarms (R2)
+  FailedJobsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Sentinel remediation job failed
+      Namespace: Sentinel
+      MetricName: JobFailed
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  AdvisoryQueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Sentinel advisory-queue depth high
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfVisibleMessages
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt AdvisoryQueue.QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 20
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  PatchQueueDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Sentinel patch-queue depth high
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfVisibleMessages
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PatchQueue.QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 20
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  AdvisoryDlqDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Messages landing in the Sentinel advisory DLQ
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfVisibleMessages
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt AdvisoryDeadLetterQueue.QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  PatchDlqDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Messages landing in the Sentinel patch DLQ
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfVisibleMessages
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt PatchDeadLetterQueue.QueueName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  StateFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Sentinel State Lambda error rate
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "sentinel-${Stage}-state"
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  AdvisorFunctionErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Sentinel Advisor Lambda error rate (cron detection silent)
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Sub "sentinel-${Stage}-advisor"
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # ---------------------------------------------------------------- CloudWatch dashboard (R2)
+  SentinelDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "Sentinel-${Stage}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            { "type": "text", "x": 0, "y": 0, "width": 24, "height": 1,
+              "properties": { "markdown": "## 🔐 Sentinel — operations (${Stage})\nQueue depth · job outcomes · Lambda health. R2 observability." } },
+            { "type": "metric", "x": 0, "y": 1, "width": 12, "height": 6,
+              "properties": { "view": "timeSeries", "stacked": false, "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/SQS", "ApproximateNumberOfVisibleMessages", "QueueName", "${AdvisoryQueue.QueueName}" ],
+                  [ "AWS/SQS", "ApproximateNumberOfVisibleMessages", "QueueName", "${PatchQueue.QueueName}" ]
+                ] } },
+            { "type": "metric", "x": 12, "y": 1, "width": 12, "height": 6,
+              "properties": { "view": "timeSeries", "stacked": false, "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${AdvisoryDeadLetterQueue.QueueName}" ],
+                  [ "AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${PatchDeadLetterQueue.QueueName}" ]
+                ] } },
+            { "type": "metric", "x": 0, "y": 7, "width": 12, "height": 6,
+              "properties": { "view": "timeSeries", "stacked": false, "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "Sentinel", "PrCreated" ],
+                  [ "Sentinel", "JobFailed" ]
+                ] } },
+            { "type": "metric", "x": 12, "y": 7, "width": 12, "height": 6,
+              "properties": { "view": "timeSeries", "stacked": false, "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "sentinel-${Stage}-advisor", { "label": "advisor" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "sentinel-${Stage}-impact", { "label": "impact" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "sentinel-${Stage}-patch", { "label": "patch" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "sentinel-${Stage}-state", { "label": "state" } ]
+                ] } },
+            { "type": "metric", "x": 0, "y": 13, "width": 12, "height": 6,
+              "properties": { "view": "timeSeries", "stacked": false, "region": "${AWS::Region}", "stat": "Sum", "period": 300,
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "sentinel-${Stage}-advisor" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "sentinel-${Stage}-impact" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "sentinel-${Stage}-patch" ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "sentinel-${Stage}-state" ]
+                ] } },
+            { "type": "metric", "x": 12, "y": 13, "width": 12, "height": 6,
+              "properties": { "view": "timeSeries", "stacked": false, "region": "${AWS::Region}", "stat": "Average", "period": 300,
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "sentinel-${Stage}-advisor" ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "sentinel-${Stage}-impact" ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "sentinel-${Stage}-patch" ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "sentinel-${Stage}-state" ]
+                ] } }
+          ]
+        }
+
+Outputs:
+  ApiUrl:
+    Description: Sentinel API base URL
+    Value: !Sub "https://${SentinelHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  ReportUrl:
+    Description: Sentinel weekly report endpoint
+    Value: !Sub "https://${SentinelHttpApi}.execute-api.${AWS::Region}.amazonaws.com/report"
+  DashboardUrl:
+    Description: Sentinel dashboard (static website)
+    Value: !Sub "http://${DashboardBucket}.s3-website-${AWS::Region}.amazonaws.com"
+  DashboardBucket:
+    Description: Dashboard S3 bucket name
+    Value: !Ref DashboardBucket
+  AdvisoryQueueUrl:
+    Description: advisory-queue URL
+    Value: !Ref AdvisoryQueue
+  PatchQueueUrl:
+    Description: patch-queue URL
+    Value: !Ref PatchQueue
+  AdvisoryDlqUrl:
+    Description: advisory dead-letter queue URL
+    Value: !Ref AdvisoryDeadLetterQueue
+  PatchDlqUrl:
+    Description: patch dead-letter queue URL
+    Value: !Ref PatchDeadLetterQueue
+  AdvisoriesTableName:
+    Value: !Ref AdvisoriesTable
+  ReposTableName:
+    Value: !Ref ReposTable
+  JobsTableName:
+    Value: !Ref JobsTable

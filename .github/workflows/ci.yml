@@ -1,0 +1,45 @@
+# Sentinel CI (R1) — runs on push + pull_request for this repo.
+# NOTE: this file lives under .github/workflows/ because GitHub mandates that
+# path for Actions; the rest of the project stays a flat single folder.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit tests + dashboard build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: VITE_API_URL=https://placeholder.example.com npm run dashboard:build
+
+  template:
+    name: SAM validate + build (cfn-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: pip install aws-sam-cli cfn-lint
+      - name: sam validate --lint
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          SAM_CLI_TELEMETRY=0 sam validate --lint --template template.yaml
+      - name: sam build --parallel
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          SAM_CLI_TELEMETRY=0 sam build --parallel
