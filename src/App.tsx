@@ -6,8 +6,9 @@ import { SimulatePanel } from "./components/SimulatePanel";
 import { AdvisoriesTable } from "./components/AdvisoriesTable";
 import { ReposTable } from "./components/ReposTable";
 import { JobsTable } from "./components/JobsTable";
+import { CommandPalette } from "./components/CommandPalette";
 
-type Tab = "overview" | "simulate" | "advisories" | "repos" | "jobs";
+export type Tab = "overview" | "simulate" | "advisories" | "repos" | "jobs";
 
 export default function App() {
   const [state, setState] = useState<State | null>(null);
@@ -16,6 +17,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [simError, setSimError] = useState<string | null>(null);
   const [queuedId, setQueuedId] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const params = new URLSearchParams(window.location.search);
     return (params.get("theme") as "dark" | "light") || (localStorage.getItem("theme") as "dark" | "light") || "dark";
@@ -63,6 +65,17 @@ export default function App() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleSimulate = useCallback(async (payload: SimulatePayload) => {
     setBusy(true);
@@ -117,12 +130,13 @@ export default function App() {
             </div>
           </div>
 
-          <div className="search-container">
-            <div className="search-input-wrap">
+          <div className="search-container" onClick={() => setPaletteOpen(true)} style={{ cursor: "pointer" }}>
+            <div className="search-input-wrap" style={{ pointerEvents: "none" }}>
               <span className="search-icon">🔍</span>
               <input
                 className="search-input"
                 placeholder="Search commands, CVEs, targets..."
+                readOnly
               />
               <span className="kbd-badge">⌘K</span>
             </div>
@@ -226,6 +240,13 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      <CommandPalette 
+        isOpen={paletteOpen} 
+        onClose={() => setPaletteOpen(false)} 
+        state={state} 
+        onNavigate={setTab} 
+      />
     </div>
   );
 }
