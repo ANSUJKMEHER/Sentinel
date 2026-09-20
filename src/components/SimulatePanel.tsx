@@ -16,30 +16,7 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
   const [resolveTransitive, setResolveTransitive] = useState(true);
   const [atomicFanout, setAtomicFanout] = useState(true);
 
-  // Stepper state
-  const [currentStep, setCurrentStep] = useState<number>(3);
-  const [step3Progress, setStep3Progress] = useState<number>(71.4);
 
-  // Logs state
-  const [logsPaused, setLogsPaused] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: "1", timestamp: "14:02:18.102", level: "INIT", message: "SAM LocalStack Enclave bound to unix:///var/run/docker.sock" },
-    { id: "2", timestamp: "14:02:18.120", level: "SQS", message: "Queue URL resolved: arn:aws:sqs:us-east-1:000000000000:sqs-dispatch-fanout.fifo" },
-    { id: "3", timestamp: "14:02:18.144", level: "VALIDATE", message: `Advisory ${form.ghsa_id} schema verified against GitHub Advisory DB Mirror` },
-    { id: "4", timestamp: "14:02:18.168", level: "SCAN", message: `Scanning 47 repository lockfiles. Matched target "${form.package}" in 14 trees.` },
-    { id: "5", timestamp: "14:02:18.210", level: "SQS:BATCH", message: "Sent MessageBatch [size=14, deduplication_id=sim-88f2a9-root] (latency 42ms)" },
-    { id: "6", timestamp: "14:02:18.330", level: "WORKER-01", message: `PR mock generated: ANSUJKMEHER/Sentinel (lockfile upgraded: 4.17.15 -> ${form.first_patched_version ?? "4.17.21"})` },
-    { id: "7", timestamp: "14:02:18.412", level: "WORKER-03", message: `PR mock generated: ANSUJKMEHER/The-Lenny-Growth-Assistant (lockfile upgraded: 4.17.19 -> ${form.first_patched_version ?? "4.17.21"})` },
-  ]);
-
-  const logContainerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll logs
-  useEffect(() => {
-    if (!logsPaused && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [logs, logsPaused]);
 
   // Handle preset selection
   const handleSelectPreset = (presetId: string) => {
@@ -48,18 +25,6 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
     setSelectedPresetId(presetId);
     setForm(p.payload);
     setSeverity(p.payload.severity);
-
-    // Append log event
-    const timeStr = new Date().toTimeString().split(" ")[0] + "." + Math.floor(Math.random() * 900 + 100);
-    setLogs((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        timestamp: timeStr,
-        level: "VALIDATE",
-        message: `Loaded verified scenario preset: ${p.name} (${p.payload.ghsa_id})`,
-      },
-    ]);
   };
 
   const handleReset = () => {
@@ -75,75 +40,10 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
       atomic_fanout: atomicFanout,
     };
 
-    // Append log event
-    const timeStr = new Date().toTimeString().split(" ")[0] + "." + Math.floor(Math.random() * 900 + 100);
-    setLogs((prev) => [
-      ...prev,
-      {
-        id: String(Date.now()),
-        timestamp: timeStr,
-        level: "SQS",
-        message: `Dispatching simulation run for ${payload.ghsa_id} (${payload.package}) across monitored repositories...`,
-      },
-    ]);
-
-    // Animate pipeline
-    setCurrentStep(3);
-    setStep3Progress(20);
-    const interval = setInterval(() => {
-      setStep3Progress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setCurrentStep(4);
-          return 100;
-        }
-        return prev + 15;
-      });
-    }, 400);
-
     onSimulate(payload);
   };
 
   const currentPreset = PRESETS.find((p) => p.id === selectedPresetId) ?? PRESETS[0];
-
-  const steps: PipelineStep[] = [
-    {
-      id: 1,
-      title: "1. Detect GHSA-PAYLOAD",
-      tag: "Completed in 14ms",
-      status: "completed",
-      statusText: "Completed in 14ms",
-      description: `GHSA payload validated against cryptographic upstream schema. SemVer range ${form.vulnerable_range} parsed with zero syntax errors.`,
-    },
-    {
-      id: 2,
-      title: `2. Org Scan 47 Repos Scanned`,
-      tag: `${currentPreset.affectedCount} Affected`,
-      status: "completed",
-      statusText: `${currentPreset.affectedCount} Affected`,
-      description: `Found ${currentPreset.affectedCount} repository manifests containing ${form.package}@${form.vulnerable_range} across 8 service clusters and 6 core libraries.`,
-      progressPercent: Math.round((currentPreset.affectedCount / 47) * 100),
-      progressLabel: `${currentPreset.affectedCount} Affected Repositories (Lockfiles Outdated) | ${47 - currentPreset.affectedCount} Repos Clear`,
-    },
-    {
-      id: 3,
-      title: `3. Atomic PR Generation`,
-      tag: currentStep === 3 ? "IN PROGRESS" : currentStep > 3 ? "COMPLETED" : "QUEUED",
-      status: currentStep === 3 ? "in_progress" : currentStep > 3 ? "completed" : "queued",
-      statusText: currentStep === 3 ? "10 of 14 lockfiles created" : "14 of 14 lockfiles created",
-      description: "Synthesizing lockfile patches and generating mock git commit signatures. Arborist AST recalculations ongoing for monorepo graphs.",
-      progressPercent: currentStep > 3 ? 100 : step3Progress,
-      progressLabel: `Current: ANSUJKMEHER/Sentinel (${currentStep > 3 ? 100 : step3Progress}% fanout)`,
-    },
-    {
-      id: 4,
-      title: "4. CI Webhook Verification",
-      tag: currentStep === 4 ? "IN PROGRESS" : "QUEUED",
-      status: currentStep === 4 ? "in_progress" : "queued",
-      statusText: currentStep === 4 ? "Running test matrix..." : "Awaiting Step 3",
-      description: "Synthetic webhook dispatch to local test matrix. Validates PR status checks and deterministic branch deployment triggers without alerting external subscribers.",
-    },
-  ];
 
   return (
     <div className="simulation-sandbox-view">
@@ -192,9 +92,9 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
         </div>
       </div>
 
-      {/* Two Column Layout: Left Form, Right Stepper + Terminal */}
-      <div className="simulate-layout">
-        {/* Left Column: Form & Presets */}
+      {/* Single Column Layout: Form & Presets */}
+      <div className="simulate-layout" style={{ gridTemplateColumns: "1fr", maxWidth: "800px", margin: "0 auto" }}>
+        {/* Form & Presets */}
         <div className="panel-card">
           {/* Presets Bar */}
           <div className="presets-section">
@@ -380,90 +280,6 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>DIFF ENGINE:</span>
               <span style={{ color: "var(--text-main)" }}>@npmcli/arborist v7.0</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Active Pipeline Stepper & SQS Log Console */}
-        <div>
-          {/* Pipeline Stepper */}
-          <div className="panel-card" style={{ marginBottom: "16px" }}>
-            <div className="panel-header-row">
-              <div className="panel-header-title">
-                <span>⚡</span> Active Pipeline Stepper
-              </div>
-              <div className="panel-header-sub">
-                Run ID: <strong style={{ color: "var(--amber-light)" }}>{lastQueuedId ?? "sim-88f2a9"}</strong>
-              </div>
-            </div>
-
-            <div className="stepper-container">
-              {steps.map((s) => (
-                <div key={s.id} className={`stepper-step ${s.status}`}>
-                  <div className="stepper-step-head">
-                    <div className="stepper-step-title">
-                      <span className={`stepper-icon-circle ${s.status}`}>
-                        {s.status === "completed" ? "✔" : s.id}
-                      </span>
-                      <span>{s.title}</span>
-                    </div>
-                    <span className={`stepper-tag ${s.status}`}>{s.tag}</span>
-                  </div>
-                  <p className="stepper-step-desc">{s.description}</p>
-                  {s.progressPercent !== undefined && (
-                    <div>
-                      <div className="stepper-progress-bar">
-                        <div className="stepper-progress-fill" style={{ width: `${s.progressPercent}%` }}></div>
-                      </div>
-                      {s.progressLabel && (
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-dim)", marginTop: "4px" }}>
-                          <span>{s.progressLabel}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* SQS Log Console */}
-          <div className="log-console">
-            <div className="log-console-head">
-              <div className="log-console-title">
-                <span>&lt;&gt;</span> Live Event Stream / SQS Log Console
-              </div>
-              <div className="log-console-actions">
-                <button type="button" className="log-text-btn" onClick={() => setLogs([])}>
-                  Clear
-                </button>
-                <button type="button" className="log-text-btn" onClick={() => setLogsPaused(!logsPaused)}>
-                  {logsPaused ? "Resume" : "Pause"}
-                </button>
-                <div className="log-receiving-pill">
-                  <span className="pulse-dot" style={{ backgroundColor: "var(--amber-light)" }}></span>
-                  <span>{logsPaused ? "PAUSED" : "RECEIVING"}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="log-stream-body" ref={logContainerRef}>
-              {logs.map((l) => (
-                <div key={l.id} className="log-row">
-                  <span className="log-time">{l.timestamp}</span>
-                  <span className={`log-level ${l.level.replace(":", "\\:")}`}>[{l.level}]</span>
-                  <span className="log-msg">{l.message}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="log-console-footer">
-              <div>
-                FIFO Message Group: <code>org.acme.sim</code> | Active Lambda Enclaves: <code>4 / 8</code>
-              </div>
-              <div className="leak-status">
-                ✔ Deterministic zero-leak dry run active
-              </div>
             </div>
           </div>
         </div>

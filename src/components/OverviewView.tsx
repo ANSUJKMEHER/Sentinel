@@ -260,24 +260,7 @@ export function OverviewView({ state, onNewSimulation, onViewJobs, onRefresh }: 
               </p>
             </div>
 
-            <div className="metrics-key-value">
-              <div className="metric-kv-row">
-                <span className="metric-kv-key">Daemon Uptime</span>
-                <span className="metric-kv-val">99.98% (42d 16h)</span>
-              </div>
-              <div className="metric-kv-row">
-                <span className="metric-kv-key">Scan Latency Avg</span>
-                <span className="metric-kv-val">418ms / manifest</span>
-              </div>
-              <div className="metric-kv-row">
-                <span className="metric-kv-key">GitHub App Bot</span>
-                <span className="metric-kv-val healthy">sentinel[bot] • Active</span>
-              </div>
-              <div className="metric-kv-row">
-                <span className="metric-kv-key">GitHub API Tokens</span>
-                <span className="metric-kv-val healthy">Healthy (94% quota)</span>
-              </div>
-            </div>
+
           </div>
 
           <div className="callout-card">

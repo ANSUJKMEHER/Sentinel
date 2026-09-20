@@ -68,14 +68,6 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
             Live tracking of automated dependency bump jobs, pull request dispatches, and CI check status.
           </p>
         </div>
-        <div className="view-actions">
-          <button className="btn btn-secondary">
-            <span>⚙</span> Concurrency (16)
-          </button>
-          <button className="btn btn-primary" onClick={onTriggerBatchSweep ?? (() => {})}>
-            <span>⚡</span> Trigger Batch Sweep
-          </button>
-        </div>
       </div>
 
       {/* 4 Pipeline Stat Boxes */}
@@ -418,19 +410,6 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
         </div>
       </div>
 
-      {/* SQS Execution banner */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "6px", fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>📄</span>
-          <span>Last SQS worker execution: <code>job-uuid: 9b2d8f-4ac1-921f</code> • merged #142 into ANSUJKMEHER/Sentinel</span>
-        </div>
-        <div>
-          <span>Dispatched via Dedicated AWS Enclave</span>
-          <span style={{ color: "var(--amber-light)", marginLeft: "12px", cursor: "pointer", fontWeight: 600 }}>
-            View RAW Telemetry ↗
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
