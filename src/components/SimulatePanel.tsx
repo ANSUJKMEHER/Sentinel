@@ -151,9 +151,9 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
       <div className="enclave-banner">
         <div className="enclave-left">
           <span className="pulse-dot"></span>
-          <strong style={{ color: "#fff" }}>SIMULATION ENCLAVE ONLINE</strong>
+          <strong style={{ color: "var(--text-main)" }}>SIMULATION ENCLAVE ONLINE</strong>
           <span>/</span>
-          <span>Deterministic Sandbox: <span style={{ color: "#fff" }}>env-stage-sam-09</span></span>
+          <span>Deterministic Sandbox: <span style={{ color: "var(--text-main)" }}>env-stage-sam-09</span></span>
           <span>/</span>
           <span>Queue: <span style={{ color: "var(--amber-light)" }}>sqs-dispatch-fanout.fifo</span></span>
         </div>
@@ -184,7 +184,7 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
         </div>
         <div className="view-actions" style={{ flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
           <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>
-            GLOBAL TARGET BASE: <strong style={{ color: "#fff" }}>47 Monitored Repos</strong>
+            GLOBAL TARGET BASE: <strong style={{ color: "var(--text-main)" }}>47 Monitored Repos</strong>
           </div>
           <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--amber-light)", fontWeight: 600 }}>
             DRY-RUN LOCK: PRs Diverted (Mock)
@@ -375,11 +375,11 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
               <span>PR GENERATION CAP:</span>
-              <span style={{ color: "#fff" }}>Unlimited (Sandbox mode)</span>
+              <span style={{ color: "var(--text-main)" }}>Unlimited (Sandbox mode)</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span>DIFF ENGINE:</span>
-              <span style={{ color: "#fff" }}>@npmcli/arborist v7.0</span>
+              <span style={{ color: "var(--text-main)" }}>@npmcli/arborist v7.0</span>
             </div>
           </div>
         </div>
@@ -472,7 +472,7 @@ export function SimulatePanel({ busy, error, lastQueuedId, onSimulate }: Simulat
       {/* Bottom Section: Affected Monitored Repositories Sample */}
       <div className="affected-sample-section">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 700, color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 700, color: "var(--text-main)" }}>
             <span>❄</span> Affected Monitored Repositories (AST Ingest Sample)
           </div>
           <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>

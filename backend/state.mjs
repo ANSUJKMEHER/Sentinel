@@ -51,9 +51,10 @@ async function scanTable(table) {
 async function fetchCiStatus(token, job) {
   try {
     const pr = await ghJson(`/repos/${job.repo}/pulls/${job.prNumber}`, { token });
-    const prState = pr.data?.state ?? "unknown";
+    const merged = pr.data?.merged === true;
+    const prState = merged ? "merged" : (pr.data?.state ?? "unknown");
     if (pr.status !== 200 || !pr.data?.head?.sha) {
-      return { ciStatus: "unknown", prState };
+      return { ciStatus: "unknown", prState, merged };
     }
     const checks = await ghJson(
       `/repos/${job.repo}/commits/${pr.data.head.sha}/check-runs?per_page=20`,
@@ -71,9 +72,9 @@ async function fetchCiStatus(token, job) {
         ciStatus = "pending";
       }
     }
-    return { ciStatus, prState };
+    return { ciStatus, prState, merged };
   } catch {
-    return { ciStatus: "unknown", prState: "unknown" };
+    return { ciStatus: "unknown", prState: "unknown", merged: false };
   }
 }
 

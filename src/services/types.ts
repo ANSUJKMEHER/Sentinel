@@ -47,6 +47,7 @@ export interface Job {
   ciStatus?: CiStatus;
   ciDetails?: string;
   prState?: string;
+  merged?: boolean;
   branch?: string;
   manifest?: string;
   isSimulated?: boolean;

@@ -74,9 +74,9 @@ async function updateJob(jobId, { status, prNumber = null, prUrl = null, error =
 /** Hidden HTML marker identifying this advisory in a PR body (idempotency + grouping). */
 export function sentinelMarker(msg) {
   return `<!-- sentinel: ${JSON.stringify({
-    ghsa_id: msg.ghsa_id,
+    ghsa_id: msg.ghsa_id || msg.ghsaId,
     package: msg.package,
-    from: msg.from_range,
+    from: msg.from_range || msg.fromRange,
     to: msg.toVersion ?? null,
   })} -->`;
 }
@@ -86,7 +86,11 @@ export function sentinelMarker(msg) {
  * Used standalone (new PR) and appended (grouped PR reuse).
  */
 export function composeAdvisorySection(msg, toVersion) {
-  const { package: pkg, from_range: fromRange, severity, summary, ghsa_id: ghsaId } = msg;
+  const pkg = msg.package;
+  const fromRange = msg.from_range || msg.fromRange;
+  const severity = msg.severity;
+  const summary = msg.summary;
+  const ghsaId = msg.ghsa_id || msg.ghsaId;
   const cap = (severity || "unknown").charAt(0).toUpperCase() + (severity || "unknown").slice(1);
   return [
     `## 🔐 Security remediation: ${pkg}`,
@@ -257,12 +261,17 @@ async function maybeSendDigest(msg) {
 }
 
 async function patchRepo(msg) {
-  const { jobId, repo, package: pkg, from_range: fromRange, default_branch: defaultBranch } = msg;
+  const jobId = msg.jobId;
+  const repo = msg.repo;
+  const pkg = msg.package;
+  const fromRange = msg.from_range || msg.fromRange;
+  const defaultBranch = msg.default_branch || msg.defaultBranch || "main";
+  const ghsaId = msg.ghsa_id || msg.ghsaId;
   const token = await getGithubToken();
 
-  const toVersion = resolvePatchedVersion(msg.first_patched_version, msg.vulnerable_range);
+  const toVersion = msg.toVersion || resolvePatchedVersion(msg.first_patched_version || msg.firstPatchedVersion, msg.vulnerable_range || msg.vulnerableRange);
   if (!toVersion) throw new Error("no patched version in advisory");
-  const branch = `security/${pkg}-${msg.ghsa_id}`;
+  const branch = `security/${pkg}-${ghsaId}`;
 
   // 1. Current package.json from the default branch (capture sha + content).
   const file = await ghJson(
@@ -359,7 +368,7 @@ async function patchRepo(msg) {
   // 6. Job => patched.
   await updateJob(jobId, { status: "patched", prNumber: pr.number, prUrl: pr.html_url });
   log("pr_created", {
-    ghsaId: msg.ghsa_id,
+    ghsaId,
     jobId,
     repo,
     prNumber: pr.number,
@@ -367,7 +376,7 @@ async function patchRepo(msg) {
     msg: `PR #${pr.number} created: ${pr.html_url}`,
   });
 
-  await maybeSendDigest(msg);
+  await maybeSendDigest({ ...msg, ghsa_id: ghsaId });
 }
 
 export const handler = async (event) => {

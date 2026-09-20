@@ -1,7 +1,13 @@
 import http from "node:http";
+import { execSync } from "node:child_process";
 import { handler } from "../backend/state.mjs";
 
 const PORT = process.env.PORT || 3001;
+
+// Read GitHub token from gh auth token if not already in env
+try {
+  process.env.GITHUB_TOKEN = process.env.GITHUB_TOKEN || execSync("gh auth token", { encoding: "utf8" }).trim();
+} catch {}
 
 // Configure AWS SDK environment for LocalStack
 process.env.AWS_REGION = "us-east-1";
@@ -47,10 +53,12 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const result = await handler(event);
-    res.writeHead(result.statusCode || 200, {
-      ...result.headers,
-      "Access-Control-Allow-Origin": "*",
-    });
+    const headers = { ...(result.headers || {}) };
+    delete headers["access-control-allow-origin"];
+    delete headers["Access-Control-Allow-Origin"];
+    headers["Access-Control-Allow-Origin"] = "*";
+    
+    res.writeHead(result.statusCode || 200, headers);
     res.end(result.body);
   } catch (err) {
     console.error("Handler error:", err);

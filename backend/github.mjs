@@ -39,10 +39,15 @@ export function getGithubTokenMeta() {
   if (!tokenPromise) {
     tokenPromise = (async () => {
       if (testToken !== null) return { token: testToken, lastModifiedAt: null };
-      const client = new SSMClient({});
+      if (process.env.GITHUB_TOKEN) return { token: process.env.GITHUB_TOKEN, lastModifiedAt: new Date().toISOString() };
+      const client = new SSMClient({
+        endpoint: process.env.AWS_ENDPOINT_URL || undefined,
+        region: process.env.AWS_REGION || "us-east-1",
+      });
       const res = await client.send(
         new GetParameterCommand({ Name: name, WithDecryption: true })
       );
+      const value = res.Parameter?.Value || "";
       let token = value;
       let appMeta = null;
       if (value.startsWith("{")) {

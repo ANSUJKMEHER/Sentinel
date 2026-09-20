@@ -6,7 +6,6 @@ import { SimulatePanel } from "./components/SimulatePanel";
 import { AdvisoriesTable } from "./components/AdvisoriesTable";
 import { ReposTable } from "./components/ReposTable";
 import { JobsTable } from "./components/JobsTable";
-import { MOCK_ADVISORIES, MOCK_REPOS, MOCK_JOBS } from "./services/mockData";
 
 type Tab = "overview" | "simulate" | "advisories" | "repos" | "jobs";
 
@@ -17,6 +16,17 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [simError, setSimError] = useState<string | null>(null);
   const [queuedId, setQueuedId] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get("theme") as "dark" | "light") || (localStorage.getItem("theme") as "dark" | "light") || "dark";
+  });
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+  };
 
   const refresh = useCallback(async (): Promise<State | null> => {
     try {
@@ -72,9 +82,9 @@ export default function App() {
     }
   }, []);
 
-  const totalAdvisories = state?.advisories?.length || MOCK_ADVISORIES.length;
-  const totalRepos = state?.repos?.length || MOCK_REPOS.length;
-  const totalJobs = state?.jobs?.length || MOCK_JOBS.length;
+  const totalAdvisories = state?.advisories?.length ?? 0;
+  const totalRepos = state?.repos?.length ?? 0;
+  const totalJobs = state?.jobs?.length ?? 0;
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "overview", label: "Overview" },
@@ -84,7 +94,7 @@ export default function App() {
     { id: "jobs", label: "Jobs", count: totalJobs },
   ];
 
-  const isBackendConnected = Boolean(API_URL && !stateError);
+  const isBackendConnected = Boolean(state && !stateError);
 
   return (
     <div className="app-root">
@@ -123,6 +133,9 @@ export default function App() {
               <span className={`status-dot ${isBackendConnected ? "online" : ""}`}></span>
               <span>LocalStack / SAM {isBackendConnected ? "LIVE" : "READY"}</span>
             </div>
+            <button className="icon-btn" title={`Switch to ${theme === "dark" ? "Light" : "Dark"} mode`} onClick={toggleTheme}>
+              <span>{theme === "dark" ? "☀️" : "🌙"}</span>
+            </button>
             <button className="icon-btn" title="Notifications">
               <span>🔔</span>
             </button>
@@ -148,6 +161,12 @@ export default function App() {
           ))}
         </div>
       </nav>
+
+      {stateError && (
+        <div style={{ background: "var(--gh-danger-bg)", color: "var(--gh-text-danger)", border: "1px solid var(--gh-danger-border)", padding: "10px 16px", margin: "16px 24px 0", borderRadius: "6px", fontSize: "13px" }}>
+          ⚠️ <strong>Backend Error:</strong> {stateError}
+        </div>
+      )}
 
       {/* ---------------- Main Content ---------------- */}
       <main className="main-wrapper">

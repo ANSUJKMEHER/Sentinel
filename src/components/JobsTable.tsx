@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import type { Job } from "../services/types";
-import { MOCK_JOBS } from "../services/mockData";
 
 interface JobsTableProps {
   jobs?: Job[];
@@ -9,7 +8,7 @@ interface JobsTableProps {
 }
 
 export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTableProps) {
-  const items = (jobs && jobs.length > 0) ? jobs : MOCK_JOBS;
+  const items = jobs || [];
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -20,6 +19,7 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
   // Counts
   const totalCount = items.length;
   const patchedCount = items.filter((j) => j.status === "patched").length;
+  const mergedCount = items.filter((j) => j.merged || j.prState === "merged" || j.prState === "closed").length;
   const queuedCount = items.filter((j) => j.status === "queued").length;
   const failedCount = items.filter((j) => j.status === "failed" || j.status === "conflict" || j.status === "blocked").length;
 
@@ -89,7 +89,7 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
             <span className="stat-big-num" style={{ fontSize: "28px" }}>{totalCount}</span>
           </div>
           <div className="stat-card-footer">
-            <span>Targeting 14 Repos</span>
+            <span>Targeting {new Set(items.map((j) => j.repo)).size} Repos</span>
             <span style={{ color: "var(--emerald)", fontWeight: 600 }}>Auto-pilot ON</span>
           </div>
         </div>
@@ -100,12 +100,12 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
             <span style={{ color: "var(--emerald)" }}>✔</span>
           </div>
           <div className="stat-value-wrap">
-            <span className="stat-big-num" style={{ color: "var(--emerald)", fontSize: "28px" }}>{patchedCount}</span>
-            <span className="stat-big-sub">77.4%</span>
+            <span className="stat-big-num" style={{ color: "var(--emerald)", fontSize: "28px" }}>{mergedCount}</span>
+            <span className="stat-big-sub">{totalCount > 0 ? Math.round((mergedCount / totalCount) * 100) : 0}%</span>
           </div>
           <div className="stat-card-footer">
             <span>Automated merge rate</span>
-            <span style={{ color: "var(--emerald)" }}>{patchedCount} / {totalCount} OK</span>
+            <span style={{ color: "var(--emerald)" }}>{mergedCount} / {totalCount} OK</span>
           </div>
         </div>
 
@@ -130,11 +130,10 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
           </div>
           <div className="stat-value-wrap">
             <span className="stat-big-num" style={{ color: "var(--red)", fontSize: "28px" }}>{failedCount}</span>
-            <span className="stat-big-sub">Requires triage</span>
+            <span className="stat-big-sub">{failedCount > 0 ? "Requires triage" : "None"}</span>
           </div>
           <div className="stat-card-footer">
-            <span>1 lockfile conflict</span>
-            <span style={{ color: "var(--red)" }}>2 branch rules</span>
+            <span>{failedCount > 0 ? "Inspect failed logs" : "All jobs healthy"}</span>
           </div>
         </div>
       </div>
@@ -245,7 +244,7 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
                         <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
                           <span style={{ fontSize: "16px", color: "var(--amber-light)", marginTop: "2px" }}>⚡</span>
                           <div>
-                            <div className="cell-mono" style={{ fontWeight: 700, color: "#fff" }}>{j.repo}</div>
+                            <div className="cell-mono" style={{ fontWeight: 700, color: "var(--text-main)" }}>{j.repo}</div>
                             <div style={{ fontSize: "11px", color: "var(--text-dim)", marginTop: "2px" }}>
                               {j.branch ?? "main branch • npm"}
                             </div>
@@ -254,7 +253,7 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
                       </td>
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <code className="cell-mono" style={{ color: "#fff", background: "rgba(255, 255, 255, 0.06)", padding: "2px 6px", borderRadius: "4px" }}>
+                          <code className="cell-mono" style={{ color: "var(--text-main)", background: "var(--gh-badge-bg)", padding: "2px 6px", borderRadius: "4px" }}>
                             {j.package}
                           </code>
                           {j.isSimulated && (
@@ -314,14 +313,52 @@ export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTabl
                       </td>
                       <td>
                         {j.prNumber ? (
-                          <a
-                            className="link-ghsa"
-                            href={j.prUrl ?? `https://github.com/${j.repo}/pull/${j.prNumber}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            #{j.prNumber} ↗
-                          </a>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <a
+                              className="link-ghsa"
+                              href={j.prUrl ?? `https://github.com/${j.repo}/pull/${j.prNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontWeight: 600 }}
+                            >
+                              #{j.prNumber} ↗
+                            </a>
+                            {j.merged || j.prState === "merged" || j.prState === "closed" ? (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "2px 8px",
+                                  borderRadius: "12px",
+                                  background: "rgba(137, 87, 229, 0.15)",
+                                  color: "#a371f7",
+                                  border: "1px solid rgba(137, 87, 229, 0.4)",
+                                  fontWeight: 600,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                🟣 Merged
+                              </span>
+                            ) : j.prState === "open" ? (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "2px 8px",
+                                  borderRadius: "12px",
+                                  background: "rgba(46, 160, 67, 0.15)",
+                                  color: "#3fb950",
+                                  border: "1px solid rgba(46, 160, 67, 0.4)",
+                                  fontWeight: 600,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                🟢 Open
+                              </span>
+                            ) : null}
+                          </div>
                         ) : (
                           <span className="cell-mono" style={{ color: "var(--text-dim)" }}>—</span>
                         )}

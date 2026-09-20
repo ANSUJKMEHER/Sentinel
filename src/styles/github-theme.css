@@ -1,0 +1,434 @@
+/* GitHub-like Theme Overrides (Default Dark + Light Mode Support) */
+
+:root,
+:root[data-theme="dark"],
+html[data-theme="dark"] {
+  /* GitHub Dark Variables (Default) */
+  --gh-bg-default: #0d1117;
+  --gh-bg-canvas: #010409;
+  --gh-bg-overlay: #161b22;
+  --gh-bg-inset: #010409;
+  --gh-bg-hover: rgba(177, 186, 196, 0.12);
+
+  --gh-border-default: #30363d;
+  --gh-border-muted: #21262d;
+
+  --gh-text-primary: #e6edf3;
+  --gh-text-secondary: #8b949e;
+  --gh-text-link: #58a6ff;
+  --gh-text-success: #3fb950;
+  --gh-text-danger: #f85149;
+  --gh-text-warning: #d29922;
+
+  --gh-btn-primary-bg: #238636;
+  --gh-btn-primary-text: #ffffff;
+  --gh-btn-primary-border: rgba(240, 246, 252, 0.1);
+  --gh-btn-primary-hover-bg: #2ea043;
+
+  --gh-btn-secondary-bg: #21262d;
+  --gh-btn-secondary-text: #c9d1d9;
+  --gh-btn-secondary-border: rgba(240, 246, 252, 0.1);
+  --gh-btn-secondary-hover-bg: #30363d;
+  
+  --gh-badge-bg: rgba(110, 118, 129, 0.4);
+  --gh-badge-text: #c9d1d9;
+  
+  --gh-active-tab: #f78166;
+  --gh-progress-bg: #21262d;
+  
+  --gh-danger-bg: rgba(248, 81, 73, 0.1);
+  --gh-danger-border: rgba(248, 81, 73, 0.4);
+  --gh-warning-bg: rgba(210, 153, 34, 0.15);
+  --gh-warning-border: transparent;
+  
+  --gh-terminal-bg: #0d1117;
+  --gh-terminal-header: #161b22;
+  
+  --gh-shadow: 0 1px 3px rgba(1, 4, 9, 0.8);
+}
+
+:root[data-theme="light"],
+html[data-theme="light"] {
+  /* GitHub Light Variables */
+  --gh-bg-default: #ffffff;
+  --gh-bg-canvas: #f6f8fa;
+  --gh-bg-overlay: #ffffff;
+  --gh-bg-inset: #f6f8fa;
+  --gh-bg-hover: rgba(208, 215, 222, 0.32);
+
+  --gh-border-default: #d0d7de;
+  --gh-border-muted: #d0d7de;
+
+  --gh-text-primary: #24292f;
+  --gh-text-secondary: #57606a;
+  --gh-text-link: #0969da;
+  --gh-text-success: #1a7f37;
+  --gh-text-danger: #cf222e;
+  --gh-text-warning: #9e6a03;
+
+  --gh-btn-primary-bg: #2da44e;
+  --gh-btn-primary-text: #ffffff;
+  --gh-btn-primary-border: rgba(27, 31, 36, 0.15);
+  --gh-btn-primary-hover-bg: #2c974b;
+
+  --gh-btn-secondary-bg: #f6f8fa;
+  --gh-btn-secondary-text: #24292f;
+  --gh-btn-secondary-border: rgba(27, 31, 36, 0.15);
+  --gh-btn-secondary-hover-bg: #f3f4f6;
+  
+  --gh-badge-bg: rgba(175, 184, 193, 0.2);
+  --gh-badge-text: #24292f;
+  
+  --gh-active-tab: #fd8c73;
+  --gh-progress-bg: #ebecf0;
+  
+  --gh-danger-bg: #ffebe9;
+  --gh-danger-border: rgba(207, 34, 46, 0.4);
+  --gh-warning-bg: #fff8c5;
+  --gh-warning-border: transparent;
+  
+  --gh-terminal-bg: #f6f8fa;
+  --gh-terminal-header: #ebecf0;
+  
+  --gh-shadow: 0 1px 3px rgba(31, 35, 40, 0.12);
+}
+
+:root {
+  /* 3. Map old system variables to new GH variables */
+  --bg-app: var(--gh-bg-canvas);
+  --bg-surface: var(--gh-bg-default);
+  --bg-card: var(--gh-bg-overlay);
+  --bg-elevated: var(--gh-bg-overlay);
+  --bg-input: var(--gh-bg-canvas);
+  --bg-terminal: var(--gh-terminal-bg);
+
+  --border-subtle: var(--gh-border-muted);
+  --border-default: var(--gh-border-default);
+  --border-hover: var(--gh-border-default);
+
+  --text-main: var(--gh-text-primary);
+  --text-muted: var(--gh-text-secondary);
+  --text-dim: var(--gh-text-secondary);
+  --text-dark: var(--gh-text-primary);
+
+  --amber-primary: var(--gh-text-warning);
+  --amber-hover: var(--gh-text-warning);
+  --amber-light: var(--gh-text-warning);
+  
+  --emerald: var(--gh-text-success);
+  --red: var(--gh-text-danger);
+  --cyan: var(--gh-text-link);
+  --blue: var(--gh-text-link);
+
+  --shadow-card: var(--gh-shadow);
+}
+
+/* 4. Implement Styles utilizing GH variables */
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+body::before {
+  display: none !important;
+}
+
+.topbar {
+  background: var(--gh-bg-canvas) !important;
+  border-bottom: 1px solid var(--gh-border-default) !important;
+  backdrop-filter: none !important;
+}
+
+.brand-logo {
+  color: var(--gh-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.brand-version {
+  background: transparent !important;
+  border: 1px solid var(--gh-border-muted) !important;
+  color: var(--gh-text-secondary) !important;
+}
+
+.org-selector {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--gh-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.org-selector:hover {
+  background: var(--gh-bg-hover) !important;
+  border-color: transparent !important;
+}
+
+.search-input {
+  background: var(--gh-bg-canvas) !important;
+  border: 1px solid var(--gh-border-default) !important;
+  color: var(--gh-text-primary) !important;
+  box-shadow: inset 0 1px 2px rgba(208, 215, 222, 0.2) !important;
+}
+
+.search-input:focus {
+  background: var(--gh-bg-default) !important;
+  border-color: var(--gh-text-link) !important;
+  box-shadow: inset 0 0 0 1px var(--gh-text-link) !important;
+}
+
+.kbd-badge {
+  background: var(--gh-bg-default) !important;
+  border: 1px solid var(--gh-border-default) !important;
+  color: var(--gh-text-secondary) !important;
+}
+
+.status-indicator {
+  background: transparent !important;
+  border: 1px solid var(--gh-border-muted) !important;
+  color: var(--gh-text-secondary) !important;
+}
+
+.status-dot {
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+.status-dot.online {
+  background-color: var(--gh-text-success) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+
+.icon-btn {
+  color: var(--gh-text-secondary) !important;
+}
+
+.icon-btn:hover {
+  color: var(--gh-text-primary) !important;
+  background: var(--gh-bg-hover) !important;
+}
+
+.avatar {
+  background: var(--gh-bg-canvas) !important;
+  border: 1px solid var(--gh-border-default) !important;
+  color: var(--gh-text-secondary) !important;
+}
+
+.nav-tabs-bar {
+  background: var(--gh-bg-default) !important;
+  border-bottom: 1px solid var(--gh-border-default) !important;
+}
+
+.nav-tab-item {
+  color: var(--gh-text-primary) !important;
+  font-weight: 400 !important;
+}
+
+.nav-tab-item:hover {
+  color: var(--gh-text-primary) !important;
+  background: var(--gh-bg-hover) !important;
+  border-radius: var(--radius-sm);
+}
+
+.nav-tab-item.active {
+  color: var(--gh-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.nav-tab-item.active::after {
+  background-color: var(--gh-active-tab) !important;
+  box-shadow: none !important;
+  border-radius: var(--radius-md);
+}
+
+.tab-badge {
+  background: var(--gh-badge-bg) !important;
+  color: var(--gh-badge-text) !important;
+  border: none !important;
+}
+
+.nav-tab-item.active .tab-badge {
+  background: var(--gh-badge-bg) !important;
+  color: var(--gh-badge-text) !important;
+}
+
+.view-title {
+  color: var(--gh-text-primary) !important;
+  font-weight: 400 !important;
+  font-size: 24px !important;
+}
+
+.pulse-dot {
+  box-shadow: none !important;
+}
+
+.btn-primary {
+  background: var(--gh-btn-primary-bg) !important;
+  color: var(--gh-btn-primary-text) !important;
+  border: 1px solid var(--gh-btn-primary-border) !important;
+  box-shadow: 0 1px 0 rgba(27, 31, 36, 0.1) !important;
+}
+
+.btn-primary:hover {
+  background: var(--gh-btn-primary-hover-bg) !important;
+  box-shadow: 0 1px 0 rgba(27, 31, 36, 0.1) !important;
+  transform: none !important;
+}
+
+.btn-secondary {
+  background: var(--gh-btn-secondary-bg) !important;
+  border: 1px solid var(--gh-btn-secondary-border) !important;
+  color: var(--gh-btn-secondary-text) !important;
+  box-shadow: 0 1px 0 rgba(27, 31, 36, 0.04) !important;
+}
+
+.btn-secondary:hover {
+  background: var(--gh-btn-secondary-hover-bg) !important;
+  border-color: var(--gh-btn-secondary-border) !important;
+  color: var(--gh-btn-secondary-text) !important;
+}
+
+.stat-card-elevated, .panel-card, .detail-card, .data-card, .filter-bar, .log-view {
+  background: var(--gh-bg-default) !important;
+  border: 1px solid var(--gh-border-default) !important;
+  box-shadow: var(--gh-shadow) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.stat-card-elevated:hover {
+  border-color: var(--gh-border-default) !important;
+  transform: none !important;
+}
+
+.stat-big-num {
+  color: var(--gh-text-primary) !important;
+  font-weight: 600 !important;
+  font-size: 32px !important;
+}
+
+.stat-progress-track {
+  background: var(--gh-progress-bg) !important;
+}
+
+.stat-progress-fill.amber {
+  background: var(--gh-text-warning) !important;
+  box-shadow: none !important;
+}
+
+.stat-progress-fill.red {
+  background: var(--gh-text-danger) !important;
+  box-shadow: none !important;
+}
+
+.panel-header-title {
+  color: var(--gh-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.recent-pr-item {
+  background: var(--gh-bg-default) !important;
+  border: 1px solid var(--gh-border-default) !important;
+}
+
+.recent-pr-item:hover {
+  background: var(--gh-bg-canvas) !important;
+  transform: none !important;
+  border-color: var(--gh-border-default) !important;
+}
+
+.pr-icon-badge {
+  background: transparent !important;
+  border: none !important;
+  color: var(--gh-text-success) !important;
+}
+
+.pr-repo {
+  color: var(--gh-text-link) !important;
+  font-weight: 600 !important;
+}
+
+.pr-number {
+  color: var(--gh-text-link) !important;
+}
+
+.diff-pkg {
+  color: var(--gh-text-primary) !important;
+}
+
+.global-footer {
+  border-top: 1px solid var(--gh-border-default) !important;
+  background: transparent !important;
+}
+
+.table-header {
+  background: var(--gh-bg-canvas) !important;
+  border-bottom: 1px solid var(--gh-border-default) !important;
+}
+
+.th-cell {
+  color: var(--gh-text-secondary) !important;
+  font-weight: 600 !important;
+}
+
+.table-row {
+  border-bottom: 1px solid var(--gh-border-default) !important;
+}
+
+.table-row:hover {
+  background: var(--gh-bg-canvas) !important;
+  transform: none !important;
+}
+
+.td-cell {
+  color: var(--gh-text-primary) !important;
+}
+
+.vuln-badge {
+  border: 1px solid var(--gh-warning-border) !important;
+  background: var(--gh-warning-bg) !important;
+  color: var(--gh-text-warning) !important;
+}
+
+.vuln-badge.high {
+  background: var(--gh-danger-bg) !important;
+  color: var(--gh-text-danger) !important;
+  border-color: var(--gh-danger-border) !important;
+}
+
+.terminal-window {
+  background: var(--gh-terminal-bg) !important;
+  border: 1px solid var(--gh-border-default) !important;
+  box-shadow: none !important;
+}
+
+.terminal-header {
+  background: var(--gh-terminal-header) !important;
+  border-bottom: 1px solid var(--gh-border-default) !important;
+}
+
+.terminal-title {
+  color: var(--gh-text-secondary) !important;
+}
+
+.terminal-body {
+  color: var(--gh-text-primary) !important;
+  font-family: var(--font-mono) !important;
+}
+
+.log-line {
+  color: var(--gh-text-primary) !important;
+}
+
+.log-prefix {
+  color: var(--gh-text-secondary) !important;
+}
+
+.log-success { color: var(--gh-text-success) !important; }
+.log-error { color: var(--gh-text-danger) !important; }
+.log-info { color: var(--gh-text-link) !important; }
+.log-warning { color: var(--gh-text-warning) !important; }
+
+.cve-code {
+  color: var(--gh-text-primary) !important;
+}

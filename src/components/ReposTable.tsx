@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import type { Repo } from "../services/types";
-import { MOCK_REPOS } from "../services/mockData";
 
 interface ReposTableProps {
   repos?: Repo[];
@@ -8,7 +7,7 @@ interface ReposTableProps {
 }
 
 export function ReposTable({ repos, onRescan }: ReposTableProps) {
-  const items = (repos && repos.length > 0) ? repos : MOCK_REPOS;
+  const items = repos || [];
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "monitored" | "excluded" | "private" | "public">("all");
@@ -51,7 +50,7 @@ export function ReposTable({ repos, onRescan }: ReposTableProps) {
             <span className="pulse-dot"></span>
             <span>FLEET INVENTORY MANAGEMENT</span>
             <span>·</span>
-            <span>REGISTRY ID: SEC-ACME-FLEET</span>
+            <span>GITHUB ORG: ANSUJKMEHER</span>
           </div>
           <h1 className="view-title">Monitored Repositories</h1>
           <p className="view-desc">
@@ -60,16 +59,16 @@ export function ReposTable({ repos, onRescan }: ReposTableProps) {
         </div>
         <div className="view-actions" style={{ gap: "16px" }}>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "20px", fontWeight: 800, color: "#fff", lineHeight: 1 }}>{totalCount}</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-main)", lineHeight: 1 }}>{totalCount}</div>
             <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>TOTAL Repositories</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--amber-light)", lineHeight: 1 }}>● {monitoredCount}</div>
-            <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>ACTIVE NPM Projects</div>
+            <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>MONITORED Repos</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-muted)", lineHeight: 1 }}>{excludedCount}</div>
-            <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>EXCLUDED (3 non-JS • 2 arch)</div>
+            <div style={{ fontSize: "10.5px", fontFamily: "var(--font-mono)", color: "var(--text-dim)" }}>EXCLUDED ({excludedCount})</div>
           </div>
         </div>
       </div>
@@ -177,7 +176,7 @@ export function ReposTable({ repos, onRescan }: ReposTableProps) {
                         </div>
                       </td>
                       <td>
-                        <code className="cell-mono" style={{ color: "var(--text-muted)", background: "rgba(255, 255, 255, 0.04)", padding: "2px 6px", borderRadius: "3px" }}>
+                        <code className="cell-mono" style={{ color: "var(--text-muted)", background: "var(--gh-badge-bg)", padding: "2px 6px", borderRadius: "3px" }}>
                           {r.defaultBranch ?? "main"}
                         </code>
                       </td>
@@ -188,7 +187,7 @@ export function ReposTable({ repos, onRescan }: ReposTableProps) {
                             fontSize: "11px",
                             padding: "2px 8px",
                             borderRadius: "4px",
-                            background: r.private ? "rgba(255, 255, 255, 0.05)" : "rgba(6, 182, 212, 0.12)",
+                            background: r.private ? "var(--gh-badge-bg)" : "rgba(6, 182, 212, 0.12)",
                             color: r.private ? "var(--text-muted)" : "var(--cyan)",
                             border: `1px solid ${r.private ? "var(--border-subtle)" : "rgba(6, 182, 212, 0.3)"}`,
                           }}

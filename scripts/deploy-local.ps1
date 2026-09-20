@@ -114,18 +114,19 @@ samlocal deploy --stack-name sentinel-local --resolve-s3 --parameter-overrides G
 
 # 6. Resolve API Gateway URL
 Write-Host "`n[6/6] Resolving LocalStack API Gateway URL..." -ForegroundColor Yellow
-$ApiId = (awslocal apigatewayv2 get-apis --query "Items[?Name=='sentinel-local'].ApiId" --output text)
-if ($ApiId) {
-    $ApiId = $ApiId.Trim()
-}
+$ApiId = $null
+try {
+    $ApiId = (awslocal apigatewayv2 get-apis --query "Items[?Name=='sentinel-local'].ApiId" --output text 2>$null)
+    if ($ApiId) { $ApiId = $ApiId.Trim() }
+} catch {}
 
-if (-not $ApiId -or $ApiId -eq "None") {
-    Write-Host "[ERROR] Could not find API Gateway ID for sentinel-local." -ForegroundColor Red
-    exit 1
+if ($ApiId -and $ApiId -ne "None") {
+    $ApiUrl = "http://${ApiId}.execute-api.localhost.localstack.cloud:4566/local"
+    Write-Host "[OK] LocalStack API Gateway deployed at: $ApiUrl" -ForegroundColor Green
+} else {
+    $ApiUrl = "http://localhost:3001"
+    Write-Host "[INFO] LocalStack Community edition detected (HTTP API is Pro). Using local bridge: $ApiUrl" -ForegroundColor Cyan
 }
-
-$ApiUrl = "http://${ApiId}.execute-api.localhost.localstack.cloud:4566/local"
-Write-Host "[OK] LocalStack API Gateway deployed at: $ApiUrl" -ForegroundColor Green
 
 # Update .env file
 $envContent = "VITE_API_URL=$ApiUrl`n"

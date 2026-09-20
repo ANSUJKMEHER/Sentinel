@@ -12,5 +12,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      "/state": "http://127.0.0.1:3001",
+      "/advisories": "http://127.0.0.1:3001",
+      "/report": "http://127.0.0.1:3001",
+    },
   },
 });

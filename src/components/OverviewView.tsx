@@ -1,5 +1,4 @@
 import type { State } from "../services/types";
-import { MOCK_STATS, MOCK_JOBS } from "../services/mockData";
 
 interface OverviewProps {
   state: State | null;
@@ -9,20 +8,27 @@ interface OverviewProps {
 }
 
 export function OverviewView({ state, onNewSimulation, onViewJobs, onRefresh }: OverviewProps) {
-  const stats = state?.stats ?? MOCK_STATS;
-  const jobs = (state?.jobs && state.jobs.length > 0) ? state.jobs : MOCK_JOBS;
+  const jobs = state?.jobs ?? [];
+  const repos = state?.repos ?? [];
+  const advisories = state?.advisories ?? [];
+
+  const patchedJobs = jobs.filter((j) => j.status === "patched");
+  const failedJobs = jobs.filter((j) => j.status === "failed" || j.status === "conflict");
+  const mergedJobs = jobs.filter((j) => j.prState === "closed" || j.merged);
+
+  const totalRepos = state?.stats?.reposMonitored ?? repos.length;
+  const prsDispatched = state?.stats?.prsOpened ?? patchedJobs.length;
+  const prsMerged = state?.stats?.prsMerged ?? mergedJobs.length;
+  const pendingRepos = failedJobs.length;
+  const cleanRepos = Math.max(0, totalRepos - pendingRepos);
+  const cleanPercent = totalRepos > 0 ? Math.round((cleanRepos / totalRepos) * 100) : 100;
+  const acceptanceRate = prsDispatched > 0 ? Math.round((prsMerged / prsDispatched) * 100) : 100;
+  const criticalHigh = advisories.filter((a) => {
+    const s = a.severity?.toLowerCase();
+    return s === "critical" || s === "high";
+  }).length;
+
   const recentJobs = jobs.slice(0, 5);
-
-  const cleanRepos = stats.cleanRepos ?? 42;
-  const totalRepos = stats.reposMonitored ?? 47;
-  const pendingRepos = stats.pendingPatchRepos ?? 5;
-  const cleanPercent = Math.round((cleanRepos / Math.max(totalRepos, 1)) * 100);
-
-  const prsDispatched = stats.prsOpened ?? 31;
-  const prsMerged = stats.prsMerged ?? 27;
-  const acceptanceRate = stats.acceptanceRate ?? 87.1;
-
-  const criticalHigh = stats.criticalHighCount ?? 3;
 
   return (
     <div className="overview-view">
@@ -38,7 +44,7 @@ export function OverviewView({ state, onNewSimulation, onViewJobs, onRefresh }: 
           <h1 className="view-title">Security Overview</h1>
           <p className="view-desc">
             Organization-wide dependency vulnerability mitigation and automated pull request orchestration across{" "}
-            <strong style={{ color: "#fff" }}>{totalRepos} repositories</strong>.
+            <strong style={{ color: "var(--text-main)" }}>{totalRepos} repositories</strong>.
           </p>
         </div>
         <div className="view-actions">
@@ -154,34 +160,53 @@ export function OverviewView({ state, onNewSimulation, onViewJobs, onRefresh }: 
           </div>
 
           <div className="recent-prs-list">
-            {recentJobs.map((j) => (
-              <div key={j.jobId} className="recent-pr-item">
-                <div className="pr-icon-badge">⚡</div>
-                <div className="pr-content">
-                  <div className="pr-top-line">
-                    <span className="pr-repo">{j.repo}</span>
-                    <span className="pr-number">#{j.prNumber ?? 100}</span>
-                    <span className="pr-manifest">{j.manifest ?? "package.json"}</span>
-                  </div>
-                  <div className="pr-diff-line">
-                    <span className="diff-pkg">{j.package}</span>
-                    <span className="diff-from">{j.fromRange ?? "unknown"}</span>
-                    <span className="diff-arrow">➔</span>
-                    <span className="diff-to">{j.toVersion ?? "latest"}</span>
-                    <span>·</span>
-                    <span className="diff-summary">{j.ciDetails ?? "Vulnerability mitigation"}</span>
-                  </div>
-                </div>
-                <div className="pr-status-col">
-                  <span className={`ci-pill ${j.ciStatus === "passing" ? "passed" : j.ciStatus === "conflict" ? "conflict" : "pending"}`}>
-                    {j.ciStatus === "passing" ? "✔ CI Passed" : j.ciStatus === "conflict" ? "⚠ Conflict" : "● CI Pending"}
-                  </span>
-                  <div className="time-ago">
-                    {j.updatedAt ? `${Math.max(1, Math.floor((Date.now() / 1000 - j.updatedAt) / 60))}m ago` : "recently"}
-                  </div>
-                </div>
+            {recentJobs.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--text-muted)" }}>
+                <div style={{ fontSize: "24px", marginBottom: "8px" }}>🛡</div>
+                <div style={{ fontWeight: 600, color: "var(--text-secondary)" }}>No Active Remediation Jobs</div>
+                <div style={{ fontSize: "12px", marginTop: "4px" }}>Trigger a simulation or scan to detect vulnerable dependencies across your repositories.</div>
               </div>
-            ))}
+            ) : (
+              recentJobs.map((j) => (
+                <div key={j.jobId} className="recent-pr-item">
+                  <div className="pr-icon-badge">⚡</div>
+                  <div className="pr-content">
+                    <div className="pr-top-line">
+                      <span className="pr-repo">{j.repo}</span>
+                      {j.prUrl ? (
+                        <a href={j.prUrl} target="_blank" rel="noreferrer" className="pr-number" style={{ textDecoration: "underline", color: "var(--amber-light)" }}>
+                          #{j.prNumber ?? 1} ↗
+                        </a>
+                      ) : (
+                        <span className="pr-number">#{j.prNumber ?? 1}</span>
+                      )}
+                      {j.merged || j.prState === "merged" || j.prState === "closed" ? (
+                        <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(137, 87, 229, 0.15)", color: "#a371f7", border: "1px solid rgba(137, 87, 229, 0.4)", fontWeight: 600 }}>🟣 Merged</span>
+                      ) : (
+                        <span style={{ fontSize: "10px", padding: "1px 6px", borderRadius: "10px", background: "rgba(46, 160, 67, 0.15)", color: "#3fb950", border: "1px solid rgba(46, 160, 67, 0.4)", fontWeight: 600 }}>🟢 Open</span>
+                      )}
+                      <span className="pr-manifest">{j.manifest ?? "package.json"}</span>
+                    </div>
+                    <div className="pr-diff-line">
+                      <span className="diff-pkg">{j.package}</span>
+                      <span className="diff-from">{j.fromRange ?? "unknown"}</span>
+                      <span className="diff-arrow">➔</span>
+                      <span className="diff-to">{j.toVersion ?? "latest"}</span>
+                      <span>·</span>
+                      <span className="diff-summary">{j.ciDetails ?? "Vulnerability mitigation"}</span>
+                    </div>
+                  </div>
+                  <div className="pr-status-col">
+                    <span className={`ci-pill ${j.ciStatus === "passing" ? "passed" : j.ciStatus === "conflict" ? "conflict" : "pending"}`}>
+                      {j.ciStatus === "passing" ? "✔ CI Passed" : j.ciStatus === "conflict" ? "⚠ Conflict" : "● CI Pending"}
+                    </span>
+                    <div className="time-ago">
+                      {j.updatedAt ? `${Math.max(1, Math.floor((Date.now() / 1000 - j.updatedAt) / 60))}m ago` : "recently"}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="panel-footer-link">

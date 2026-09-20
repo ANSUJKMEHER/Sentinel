@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import type { Advisory } from "../services/types";
-import { MOCK_ADVISORIES } from "../services/mockData";
 
 interface AdvisoriesTableProps {
   advisories?: Advisory[];
@@ -8,7 +7,7 @@ interface AdvisoriesTableProps {
 }
 
 export function AdvisoriesTable({ advisories, onPoll }: AdvisoriesTableProps) {
-  const items = (advisories && advisories.length > 0) ? advisories : MOCK_ADVISORIES;
+  const items = advisories || [];
 
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
@@ -269,7 +268,7 @@ export function AdvisoriesTable({ advisories, onPoll }: AdvisoriesTableProps) {
                       </div>
                     </td>
                     <td>
-                      <code className="cell-mono" style={{ color: "#fff", background: "rgba(255, 255, 255, 0.06)", padding: "2px 6px", borderRadius: "4px" }}>
+                      <code className="cell-mono" style={{ color: "var(--text-main)", background: "var(--gh-badge-bg)", padding: "2px 6px", borderRadius: "4px" }}>
                         {a.package}
                       </code>
                     </td>
