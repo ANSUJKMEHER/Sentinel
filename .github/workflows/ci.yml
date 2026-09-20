@@ -10,12 +10,12 @@ on:
 jobs:
   unit:
     name: Unit tests + dashboard build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm test
@@ -23,12 +23,12 @@ jobs:
 
   template:
     name: SAM validate + build (cfn-lint)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
       - uses: actions/setup-python@v5
         with:

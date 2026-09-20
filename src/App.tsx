@@ -220,7 +220,6 @@ export default function App() {
           <JobsTable
             jobs={state?.jobs}
             highlightGhsa={queuedId}
-            onTriggerBatchSweep={refresh}
           />
         )}
       </main>

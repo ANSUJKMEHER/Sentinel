@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, type FormEvent } from "react";
-import type { SimulatePayload, PipelineStep, LogEntry } from "../services/types";
+import { useState, type FormEvent } from "react";
+import type { SimulatePayload } from "../services/types";
 import { PRESETS } from "../services/mockData";
 
 interface SimulatePanelProps {

@@ -2,12 +2,11 @@ import { useState, useMemo } from "react";
 import type { Job } from "../services/types";
 
 interface JobsTableProps {
-  jobs?: Job[];
-  highlightGhsa?: string | null;
-  onTriggerBatchSweep?: () => void;
+  jobs: Job[] | undefined;
+  highlightGhsa: string | null;
 }
 
-export function JobsTable({ jobs, highlightGhsa, onTriggerBatchSweep }: JobsTableProps) {
+export function JobsTable({ jobs, highlightGhsa }: JobsTableProps) {
   const items = jobs || [];
 
   const [search, setSearch] = useState("");
