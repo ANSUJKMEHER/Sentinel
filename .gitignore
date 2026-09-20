@@ -4,3 +4,6 @@ dist/
 *.log
 .env
 .env.local
+
+# LocalStack runtime cache — never commit
+.localstack/
