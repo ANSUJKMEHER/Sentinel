@@ -39,17 +39,17 @@ export function CommandPalette({ isOpen, onClose, state, onNavigate }: CommandPa
   // Filter logic
   const matchAdvisories = (state?.advisories || []).filter(
     (a) =>
-      a.ghsaId.toLowerCase().includes(q) ||
-      a.package.toLowerCase().includes(q) ||
+      (a.ghsa_id || "").toLowerCase().includes(q) ||
+      (a.package || "").toLowerCase().includes(q) ||
       (a.cve && a.cve.toLowerCase().includes(q))
   ).slice(0, 5);
 
   const matchRepos = (state?.repos || []).filter(
-    (r) => r.name.toLowerCase().includes(q)
+    (r) => (r.repo || "").toLowerCase().includes(q)
   ).slice(0, 5);
 
   const matchJobs = (state?.jobs || []).filter(
-    (j) => j.repo.toLowerCase().includes(q) || j.package.toLowerCase().includes(q)
+    (j) => (j.repo || "").toLowerCase().includes(q) || (j.package || "").toLowerCase().includes(q)
   ).slice(0, 5);
 
   const commands = [
@@ -117,9 +117,9 @@ export function CommandPalette({ isOpen, onClose, state, onNavigate }: CommandPa
                 <div className="palette-section">
                   <div className="palette-section-title">Advisories</div>
                   {matchAdvisories.map((a) => (
-                    <div key={a.ghsaId} className="palette-item" onClick={() => handleAction(() => onNavigate("advisories"))}>
+                    <div key={a.ghsa_id} className="palette-item" onClick={() => handleAction(() => onNavigate("advisories"))}>
                       <span className="palette-item-icon">🛡</span>
-                      <span className="palette-item-text">{a.ghsaId} • {a.package}</span>
+                      <span className="palette-item-text">{a.ghsa_id} • {a.package}</span>
                     </div>
                   ))}
                 </div>
@@ -129,9 +129,9 @@ export function CommandPalette({ isOpen, onClose, state, onNavigate }: CommandPa
                 <div className="palette-section">
                   <div className="palette-section-title">Repositories</div>
                   {matchRepos.map((r) => (
-                    <div key={r.name} className="palette-item" onClick={() => handleAction(() => onNavigate("repos"))}>
+                    <div key={r.repo} className="palette-item" onClick={() => handleAction(() => onNavigate("repos"))}>
                       <span className="palette-item-icon">📁</span>
-                      <span className="palette-item-text">{r.name}</span>
+                      <span className="palette-item-text">{r.repo}</span>
                     </div>
                   ))}
                 </div>
