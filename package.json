@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Sentinel — advisory-first, org-wide npm dependency security automation for GitHub",
   "scripts": {
-    "test": "node --test decisions.test.mjs prbody.test.mjs policy.test.mjs report.test.mjs handlers.test.mjs",
-    "smoke": "node smoke.mjs",
+    "test": "node --test backend/*.test.mjs",
+    "smoke": "node backend/smoke.mjs",
     "dashboard:dev": "vite",
     "dashboard:build": "tsc && vite build",
     "dashboard:preview": "vite preview"

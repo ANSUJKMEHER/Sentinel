@@ -43,13 +43,18 @@ export function getGithubTokenMeta() {
       const res = await client.send(
         new GetParameterCommand({ Name: name, WithDecryption: true })
       );
-      const value = res.Parameter?.Value;
-      if (!value || value.startsWith("REPLACE_WITH")) {
-        throw new Error(
-          `SSM parameter ${name} is not configured with a real GitHub token (set it with: aws ssm put-parameter --name ${name} --type SecureString --value <PAT> --overwrite)`
-        );
+      let token = value;
+      let appMeta = null;
+      if (value.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(value);
+          token = parsed.token || parsed.installationToken || value;
+          appMeta = { appId: parsed.appId, installationId: parsed.installationId };
+        } catch {
+          // not valid JSON, use raw value
+        }
       }
-      return { token: value, lastModifiedAt: res.Parameter?.LastModifiedDate ?? null };
+      return { token, lastModifiedAt: res.Parameter?.LastModifiedDate ?? null, appMeta };
     })().catch((err) => {
       tokenPromise = null; // allow retry on next invocation (fresh cold start)
       throw err;

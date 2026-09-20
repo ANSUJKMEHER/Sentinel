@@ -147,7 +147,7 @@ Resources:
         Minify: false
         Sourcemap: true
     Properties:
-      CodeUri: .
+      CodeUri: backend/
       Handler: advisor.handler
       FunctionName: !Sub "sentinel-${Stage}-advisor"
       Description: Detect new npm GHSA advisories -> DynamoDB + advisory-queue
@@ -187,7 +187,7 @@ Resources:
         Minify: false
         Sourcemap: true
     Properties:
-      CodeUri: .
+      CodeUri: backend/
       Handler: impact.handler
       FunctionName: !Sub "sentinel-${Stage}-impact"
       Description: Decide which org repos are affected by one advisory
@@ -232,7 +232,7 @@ Resources:
         Minify: false
         Sourcemap: true
     Properties:
-      CodeUri: .
+      CodeUri: backend/
       Handler: patch.handler
       FunctionName: !Sub "sentinel-${Stage}-patch"
       Timeout: 60
@@ -286,7 +286,7 @@ Resources:
         Minify: false
         Sourcemap: true
     Properties:
-      CodeUri: .
+      CodeUri: backend/
       Handler: state.handler
       FunctionName: !Sub "sentinel-${Stage}-state"
       Timeout: 60

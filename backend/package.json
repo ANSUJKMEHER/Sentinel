@@ -1,0 +1,16 @@
+{
+  "name": "sentinel-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Sentinel AWS Lambda micro-workers for dependency vulnerability mitigation",
+  "dependencies": {
+    "semver": "^7.6.3",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/client-sqs": "^3.600.0",
+    "@aws-sdk/client-ssm": "^3.600.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.600.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

@@ -1,4 +1,4 @@
-import type { StateStats } from "./types";
+import type { StateStats } from "../services/types";
 
 export function StatCards({ stats }: { stats: StateStats | undefined }) {
   const cards = [
