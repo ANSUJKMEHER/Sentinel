@@ -29,9 +29,6 @@
 
 ---
 
-<p align="center">
-  <img src="docs/assets/workflow.jpg" alt="Sentinel Workflow Infographic" width="800"/>
-</p>
 
 ## 💡 The Problem
 
